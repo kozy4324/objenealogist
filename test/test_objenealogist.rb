@@ -3,11 +3,8 @@
 require "test_helper"
 
 class TestObjenealogist < Minitest::Test
-  def test_that_it_has_a_version_number
-    refute_nil ::Objenealogist::VERSION
-  end
-
-  def test_it_does_something_useful
-    assert false
+  def test_to_tree
+    expected = /C Objenealogist \(location: .*objenealogist.rb:7\)/
+    assert_match expected, Objenealogist.to_tree(Objenealogist)
   end
 end

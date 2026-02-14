@@ -8,51 +8,99 @@ class Objenealogist
   class ClassVisitor < Prism::Visitor
     attr_reader :found
 
-    def initialize(target_class_name)
-      @target_class_name = target_class_name.to_s.to_sym
+    def initialize(target_class_names)
+      @target_class_names = target_class_names.map(&:to_s).map(&:to_sym)
       @found = []
     end
 
     def visit_class_node(node)
-      @found << node.location if node.name == @target_class_name
+      @found << [node.name, node.location] if @target_class_names.include?(node.name)
       super
     end
+
+    alias visit_module_node visit_class_node
   end
 
   class << self
     def to_tree(clazz)
-      # @ ClassNode (location: (1,0)-(3,3))
-      # ├── flags: newline
-      # ├── locals: []
-      # ├── class_keyword_loc: (1,0)-(1,5) = "class"
-      # ├── constant_path:
-      # │   @ ConstantReadNode (location: (1,6)-(1,13))
-      # │   ├── flags: ∅
-      # │   └── name: :Article
-      locations = search_class_def_location(clazz)
+      # ruby -r./lib/objenealogist -e 'puts Objenealogist.to_tree(Objenealogist)'
+      location_map = create_location_map(clazz)
 
-      "C #{clazz} (location: #{locations.join(", ")})"
+      result = []
+
+      locations = location_map[clazz.to_s.to_sym]
+      result << "C #{clazz}" + (locations.empty? ? "" : " (location: #{locations.join(", ")})")
+
+      (clazz.included_modules - clazz.superclass.included_modules).reverse.each do |mod|
+        locations = location_map[mod.to_s.to_sym]
+        result << "├── M #{mod}" + (locations.empty? ? "" : " (location: #{locations.join(", ")})")
+      end
+
+      locations = location_map[clazz.superclass.to_s.to_sym]
+      result << "└── C #{clazz.superclass}" + (locations.empty? ? "" : " (location: #{locations.join(", ")})")
+
+      result.join("\n")
     end
 
-    def search_class_def_location(clazz)
+    def create_location_map(clazz)
       instance = clazz.allocate
-      methods = clazz.methods(false) +
-                instance.public_methods(false) +
-                instance.private_methods(false) +
-                instance.protected_methods(false)
+      methods = clazz.methods + instance.methods
       source_locations = methods.map do |m|
         if clazz.respond_to?(m)
-          clazz.method(m).source_location.first
+          clazz.method(m).source_location&.first
         elsif instance.respond_to?(m)
-          instance.method(m).source_location.first
+          instance.method(m).source_location&.first
         end
       end.compact.uniq
-      source_locations.map do |source_location|
+      location_map = {}
+      source_locations.each do |source_location|
+        next unless File.exist?(source_location)
+
         source = File.open(source_location).read
-        visitor = ClassVisitor.new(clazz)
+        visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
-        visitor.found.map { |class_def_location| "#{source_location}:#{class_def_location.start_line}" }
-      end.flat_map.compact
+        visitor.found.each do |name, class_def_location|
+          (location_map[name] ||= []) << "#{source_location}:#{class_def_location.start_line}"
+        end
+      end
+      location_map
     end
   end
+end
+
+module M1
+  def m1 = :m1
+end
+
+module M2
+  def m2 = :m2
+end
+
+module M3
+  def m3 = :m3
+end
+
+module M4
+  include M3
+  def m4 = :m4
+end
+
+module M5
+  def m5 = :m5
+end
+
+class C1
+  include M5
+  def c1 = :c1
+end
+
+class C2 < C1
+  include M4
+  def c2 = :c2
+end
+
+class MyClass < C2
+  include M1
+  include M2
+  def c = :c
 end

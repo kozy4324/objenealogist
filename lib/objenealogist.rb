@@ -38,7 +38,7 @@ class Objenealogist
       result << "#{indent}C #{clazz}#{format_locations(locations, show_locations:, target: clazz.to_s)}" if indent == ""
       if locations && locations[:methods] && show_methods
         locations[:methods].sort do |a, b|
-          a[2] == a[2] ? a[0] <=> b[0] : a[2] <=> b[2]
+          a[2] == b[2] ? a[0] <=> b[0] : a[2] <=> b[2]
         end.each_with_index do |method, index|
           m, path, line = method
           mark = locations[:methods].size - 1 == index ? "└" : "├"

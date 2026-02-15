@@ -51,21 +51,21 @@ class Objenealogist
       instance = clazz.allocate
       methods = clazz.methods + instance.methods
       source_locations = methods.map do |m|
-        if clazz.respond_to?(m)
-          clazz.method(m).source_location&.first
-        elsif instance.respond_to?(m)
-          instance.method(m).source_location&.first
+        if clazz.respond_to?(m) && clazz.method(m).source_location
+          [m] + clazz.method(m).source_location
+        elsif instance.respond_to?(m) && instance.method(m).source_location
+          [m] + instance.method(m).source_location
         end
-      end.compact.uniq
+      end.compact
       location_map = {}
-      source_locations.each do |source_location|
-        next unless File.exist?(source_location)
+      source_locations.uniq { |_, path,| path }.each do |method, path, line|
+        next unless File.exist?(path)
 
-        source = File.open(source_location).read
+        source = File.open(path).read
         visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
         visitor.found.each do |name, class_def_location|
-          (location_map[name] ||= []) << "#{source_location}:#{class_def_location.start_line}"
+          (location_map[name] ||= []) << "#{path}:#{class_def_location.start_line}"
         end
       end
       location_map
@@ -108,4 +108,5 @@ class MyClass < C2
   include M1
   include M2
   def c = :c
+  def self.singleton_c = :singleton_c
 end

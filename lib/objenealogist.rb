@@ -26,32 +26,33 @@ class Objenealogist
   end
 
   class << self
-    def to_tree(clazz)
+    def to_tree(clazz, show_methods: true, show_locations: true)
       # ruby -r./lib/objenealogist -e 'puts Objenealogist.to_tree(Objenealogist)'
-      process_one(clazz).join("\n")
+      process_one(clazz, show_methods:, show_locations:).join("\n")
     end
 
-    def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "")
+    def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "", show_methods: true,
+                    show_locations: true)
       locations = location_map[clazz.to_s.to_sym]
 
-      result << "#{indent}C #{clazz}#{format_locations(locations)}" if indent == ""
-      if locations && locations[:methods]
+      result << "#{indent}C #{clazz}#{format_locations(locations, show_locations:)}" if indent == ""
+      if locations && locations[:methods] && show_methods
         locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
           m, path, line = method
           mark = locations[:methods].size - 1 == index ? "└" : "├"
-          result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}")}"
+          result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:)}"
         end
         result << "#{indent}|"
       end
 
       (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|
         locations = location_map[mod.to_s.to_sym]
-        result << "#{indent}├── M #{mod}#{format_locations(locations)}"
-        if locations && locations[:methods] # rubocop:disable Style/Next
+        result << "#{indent}├── M #{mod}#{format_locations(locations, show_locations:)}"
+        if locations && locations[:methods] && show_methods # rubocop:disable Style/Next
           locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
             m, path, line = method
             mark = locations[:methods].size - 1 == index ? "└" : "├"
-            result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}")}"
+            result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:)}"
           end
           result << "#{indent}|"
         end
@@ -59,21 +60,21 @@ class Objenealogist
 
       if clazz.superclass
         locations = location_map[clazz.superclass.to_s.to_sym]
-        result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations)}"
-        process_one(clazz.superclass, result, location_map, "    #{indent}")
+        result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations, show_locations:)}"
+        process_one(clazz.superclass, result, location_map, "    #{indent}", show_methods:, show_locations:)
       else
         result
       end
     end
 
-    def format_locations(locations)
+    def format_locations(locations, show_locations: true)
       if locations.is_a?(String)
-        if locations != ":0"
+        if locations != ":0" && show_locations
           " (location: #{locations})"
         else
           ""
         end
-      elsif locations && locations[:locations]&.any?
+      elsif locations && locations[:locations]&.any? && show_locations
         " (location: #{locations[:locations].map { |path, loc| "#{path}:#{loc.start_line}" }.join(", ")})"
       else
         ""

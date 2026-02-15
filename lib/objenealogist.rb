@@ -36,30 +36,35 @@ class Objenealogist
       locations = location_map[clazz.to_s.to_sym]
 
       result << "#{indent}C #{clazz}#{format_locations(locations, show_locations:, target: clazz.to_s)}" if indent == ""
-      if locations && locations[:methods] && show_methods
-        locations[:methods].sort do |a, b|
-          a[2] == b[2] ? a[0] <=> b[0] : a[2] <=> b[2]
-        end.each_with_index do |method, index|
-          m, path, line = method
-          mark = locations[:methods].size - 1 == index ? "└" : "├"
-          result << "#{indent}│ #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:, target: clazz.to_s)}"
+      if show_methods
+        methods = class << clazz; public_instance_methods(false).map { |m| instance_method(m) }; end
+        methods += clazz.public_instance_methods(false).map do |m|
+          clazz.instance_method(m)
         end
-        result << "#{indent}│"
+        methods.compact.sort { |a, b| a.name <=> b.name }.each_with_index do |method, index|
+          path, line = method.source_location
+          mark = methods.size - 1 == index ? "└" : "├"
+          result << "#{indent}│ #{mark} #{method.name}#{format_locations("#{path}:#{line}", show_locations:,
+                                                                                            target: clazz.to_s)}"
+        end
+        result << "#{indent}│" if methods.any?
       end
 
       (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|
         locations = location_map[mod.to_s.to_sym]
         result << "#{indent}├── M #{mod}#{format_locations(locations, show_locations:, target: mod.to_s)}"
-        if locations && locations[:methods] && show_methods # rubocop:disable Style/Next
-          locations[:methods].sort do |a, b|
-            a[2] == b[2] ? a[0] <=> b[0] : a[2] <=> b[2]
-          end.each_with_index do |method, index|
-            m, path, line = method
-            mark = locations[:methods].size - 1 == index ? "└" : "├"
-            result << "#{indent}|     #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:,
-                                                                                        target: mod.to_s)}"
+        if show_methods && mod != ::Kernel # rubocop:disable Style/Next
+          methods = class << mod; public_instance_methods(false).map { |m| instance_method(m) }; end
+          methods += mod.public_instance_methods(false).map do |m|
+            clazz.instance_method(m)
           end
-          result << "#{indent}|"
+          methods.compact.sort { |a, b| a.name <=> b.name }.each_with_index do |method, index|
+            path, line = method.source_location
+            mark = methods.size - 1 == index ? "└" : "├"
+            result << "#{indent}│ #{mark} #{method.name}#{format_locations("#{path}:#{line}", show_locations:,
+                                                                                              target: mod.to_s)}"
+          end
+          result << "#{indent}│" if methods.any?
         end
       end
 
@@ -67,7 +72,11 @@ class Objenealogist
         locations = location_map[clazz.superclass.to_s.to_sym]
         result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations, show_locations:,
                                                                                    target: clazz.superclass.to_s)}"
-        process_one(clazz.superclass, result, location_map, "    #{indent}", show_methods:, show_locations:)
+        if clazz.superclass != ::BasicObject
+          process_one(clazz.superclass, result, location_map, "    #{indent}", show_methods:, show_locations:)
+        else
+          result
+        end
       else
         result
       end
@@ -78,7 +87,7 @@ class Objenealogist
       return "" if show_locations.is_a?(Regexp) && show_locations !~ target
 
       if locations.is_a?(String)
-        if locations != ":0" && show_locations
+        if locations != ":" && show_locations
           " (location: #{locations})"
         else
           ""
@@ -111,22 +120,9 @@ class Objenealogist
           (location_map[name] ||= { name: name, locations: [], methods: [] })[:locations] << [path, def_location]
         end
       end
-      source_locations.uniq(&:join).each do |m, method_path, line|
-        locations = location_map.values.find do |location|
-          location[:locations].any? do |source_path, loc|
-            method_path == source_path && loc.start_line <= line && line <= loc.end_line
-          end
-        end
-        if locations
-          locations[:methods] << [m, method_path, line]
-        else
-          location_map[clazz.to_s.to_sym]&.[](:methods)&.<< [m, nil, 0]
-        end
-      end
       # {M1:
       #   {name: :M1,
-      #    locations: [["objenealogist.rb", (122,0)-(124,3)]],
-      #    methods: [[:m1, "objenealogist.rb", 123]]}}
+      #    locations: [["objenealogist.rb", (122,0)-(124,3)]]}
       location_map
     end
   end

@@ -24,22 +24,27 @@ class Objenealogist
   class << self
     def to_tree(clazz)
       # ruby -r./lib/objenealogist -e 'puts Objenealogist.to_tree(Objenealogist)'
-      location_map = create_location_map(clazz)
+      process_one(clazz).join("\n")
+    end
 
-      result = []
-
-      locations = location_map[clazz.to_s.to_sym]
-      result << "C #{clazz}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
-
-      (clazz.included_modules - clazz.superclass.included_modules).each do |mod|
-        locations = location_map[mod.to_s.to_sym]
-        result << "├── M #{mod}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+    def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "")
+      if indent == ""
+        locations = location_map[clazz.to_s.to_sym]
+        result << "#{indent}C #{clazz}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
       end
 
-      locations = location_map[clazz.superclass.to_s.to_sym]
-      result << "└── C #{clazz.superclass}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+      (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|
+        locations = location_map[mod.to_s.to_sym]
+        result << "#{indent}├── M #{mod}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+      end
 
-      result.join("\n")
+      if clazz.superclass
+        locations = location_map[clazz.superclass.to_s.to_sym]
+        result << "#{indent}└── C #{clazz.superclass}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+        process_one(clazz.superclass, result, location_map, "    #{indent}")
+      else
+        result
+      end
     end
 
     def create_location_map(clazz)

@@ -34,20 +34,28 @@ class Objenealogist
     def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "")
       if indent == ""
         locations = location_map[clazz.to_s.to_sym]
-        result << "#{indent}C #{clazz}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+        result << "#{indent}C #{clazz}#{format_locations(locations)}"
       end
 
       (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|
         locations = location_map[mod.to_s.to_sym]
-        result << "#{indent}├── M #{mod}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+        result << "#{indent}├── M #{mod}#{format_locations(locations)}"
       end
 
       if clazz.superclass
         locations = location_map[clazz.superclass.to_s.to_sym]
-        result << "#{indent}└── C #{clazz.superclass}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
+        result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations)}"
         process_one(clazz.superclass, result, location_map, "    #{indent}")
       else
         result
+      end
+    end
+
+    def format_locations(locations)
+      if locations&.any?
+        " (location: #{locations.join(", ")})"
+      else
+        ""
       end
     end
 
@@ -72,6 +80,14 @@ class Objenealogist
           (location_map[name] ||= []) << "#{path}:#{def_location.start_line}"
         end
       end
+      # {M1: ["objenealogist.rb:82"],
+      #  M2: ["objenealogist.rb:86"],
+      #  M3: ["objenealogist.rb:90"],
+      #  M4: ["objenealogist.rb:94"],
+      #  M5: ["objenealogist.rb:99"],
+      #  C1: ["objenealogist.rb:103"],
+      #  "NS::C2": ["objenealogist.rb:109"],
+      #  MyClass: ["objenealogist.rb:115"]}
       location_map
     end
   end

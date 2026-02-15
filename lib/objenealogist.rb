@@ -104,14 +104,14 @@ class Objenealogist
           (location_map[name] ||= { name: name, locations: [], methods: [] })[:locations] << [path, def_location]
         end
       end
-      source_locations.uniq(&:join).each do |m, path, line|
+      source_locations.uniq(&:join).each do |m, method_path, line|
         locations = location_map.values.find do |location|
-          location[:locations].any? do |_path, loc|
-            path == _path && loc.start_line <= line && line <= loc.end_line
+          location[:locations].any? do |source_path, loc|
+            method_path == source_path && loc.start_line <= line && line <= loc.end_line
           end
         end
         if locations
-          locations[:methods] << [m, path, line]
+          locations[:methods] << [m, method_path, line]
         else
           location_map[clazz.to_s.to_sym]&.[](:methods)&.<< [m, nil, 0]
         end

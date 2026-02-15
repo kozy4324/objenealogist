@@ -29,15 +29,15 @@ class Objenealogist
       result = []
 
       locations = location_map[clazz.to_s.to_sym]
-      result << "C #{clazz}" + (locations.empty? ? "" : " (location: #{locations.join(", ")})")
+      result << "C #{clazz}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
 
-      (clazz.included_modules - clazz.superclass.included_modules).reverse.each do |mod|
+      (clazz.included_modules - clazz.superclass.included_modules).each do |mod|
         locations = location_map[mod.to_s.to_sym]
-        result << "├── M #{mod}" + (locations.empty? ? "" : " (location: #{locations.join(", ")})")
+        result << "├── M #{mod}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
       end
 
       locations = location_map[clazz.superclass.to_s.to_sym]
-      result << "└── C #{clazz.superclass}" + (locations.empty? ? "" : " (location: #{locations.join(", ")})")
+      result << "└── C #{clazz.superclass}" + (locations&.any? ? " (location: #{locations.join(", ")})" : "")
 
       result.join("\n")
     end

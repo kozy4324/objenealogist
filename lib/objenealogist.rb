@@ -32,14 +32,29 @@ class Objenealogist
     end
 
     def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "")
-      if indent == ""
-        locations = location_map[clazz.to_s.to_sym]
-        result << "#{indent}C #{clazz}#{format_locations(locations)}"
+      locations = location_map[clazz.to_s.to_sym]
+
+      result << "#{indent}C #{clazz}#{format_locations(locations)}" if indent == ""
+      if locations && locations[:methods]
+        locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
+          m, path, line = method
+          mark = locations[:methods].size - 1 == index ? "└" : "├"
+          result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}")}"
+        end
+        result << "#{indent}|"
       end
 
       (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|
         locations = location_map[mod.to_s.to_sym]
         result << "#{indent}├── M #{mod}#{format_locations(locations)}"
+        if locations && locations[:methods] # rubocop:disable Style/Next
+          locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
+            m, path, line = method
+            mark = locations[:methods].size - 1 == index ? "└" : "├"
+            result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}")}"
+          end
+          result << "#{indent}|"
+        end
       end
 
       if clazz.superclass
@@ -52,8 +67,10 @@ class Objenealogist
     end
 
     def format_locations(locations)
-      if locations&.any?
-        " (location: #{locations.join(", ")})"
+      if locations.is_a?(String)
+        " (location: #{locations})"
+      elsif locations && locations[:locations]&.any?
+        " (location: #{locations[:locations].map { |path, loc| "#{path}:#{loc.start_line}" }.join(", ")})"
       else
         ""
       end
@@ -77,17 +94,20 @@ class Objenealogist
         visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
         visitor.found.each do |name, def_location|
-          (location_map[name] ||= []) << "#{path}:#{def_location.start_line}"
+          (location_map[name] ||= { locations: [], methods: [] })[:locations] << [path, def_location]
         end
       end
-      # {M1: ["objenealogist.rb:82"],
-      #  M2: ["objenealogist.rb:86"],
-      #  M3: ["objenealogist.rb:90"],
-      #  M4: ["objenealogist.rb:94"],
-      #  M5: ["objenealogist.rb:99"],
-      #  C1: ["objenealogist.rb:103"],
-      #  "NS::C2": ["objenealogist.rb:109"],
-      #  MyClass: ["objenealogist.rb:115"]}
+      source_locations.each do |m, path, line|
+        locations = location_map.values.find do |location|
+          location[:locations].any? do |_path, loc|
+            path == _path && loc.start_line <= line && line <= loc.end_line
+          end
+        end
+        locations[:methods] << [m, path, line] if locations
+      end
+      # {M1:
+      #   {locations: [["objenealogist.rb", (122,0)-(124,3)]],
+      #    methods: [[:m1, "objenealogist.rb", 123]]}}
       location_map
     end
   end

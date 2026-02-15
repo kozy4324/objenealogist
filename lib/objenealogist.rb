@@ -35,26 +35,27 @@ class Objenealogist
                     show_locations: true)
       locations = location_map[clazz.to_s.to_sym]
 
-      result << "#{indent}C #{clazz}#{format_locations(locations, show_locations:)}" if indent == ""
+      result << "#{indent}C #{clazz}#{format_locations(locations, show_locations:, target: clazz.to_s)}" if indent == ""
       if locations && locations[:methods] && show_methods
         locations[:methods].sort do |a, b|
           a[2] == a[2] ? a[0] <=> b[0] : a[2] <=> b[2]
         end.each_with_index do |method, index|
           m, path, line = method
           mark = locations[:methods].size - 1 == index ? "└" : "├"
-          result << "#{indent}│ #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:)}"
+          result << "#{indent}│ #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:, target: clazz.to_s)}"
         end
         result << "#{indent}│"
       end
 
       (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|
         locations = location_map[mod.to_s.to_sym]
-        result << "#{indent}├── M #{mod}#{format_locations(locations, show_locations:)}"
+        result << "#{indent}├── M #{mod}#{format_locations(locations, show_locations:, target: mod.to_s)}"
         if locations && locations[:methods] && show_methods # rubocop:disable Style/Next
           locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
             m, path, line = method
             mark = locations[:methods].size - 1 == index ? "└" : "├"
-            result << "#{indent}|     #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:)}"
+            result << "#{indent}|     #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:,
+                                                                                        target: mod.to_s)}"
           end
           result << "#{indent}|"
         end
@@ -62,14 +63,18 @@ class Objenealogist
 
       if clazz.superclass
         locations = location_map[clazz.superclass.to_s.to_sym]
-        result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations, show_locations:)}"
+        result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations, show_locations:,
+                                                                                   target: clazz.superclass.to_s)}"
         process_one(clazz.superclass, result, location_map, "    #{indent}", show_methods:, show_locations:)
       else
         result
       end
     end
 
-    def format_locations(locations, show_locations: true)
+    def format_locations(locations, show_locations: true, target: "")
+      return "" unless show_locations
+      return "" if show_locations.is_a?(Regexp) && show_locations !~ target
+
       if locations.is_a?(String)
         if locations != ":0" && show_locations
           " (location: #{locations})"

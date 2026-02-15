@@ -51,7 +51,9 @@ class Objenealogist
         locations = location_map[mod.to_s.to_sym]
         result << "#{indent}├── M #{mod}#{format_locations(locations, show_locations:, target: mod.to_s)}"
         if locations && locations[:methods] && show_methods # rubocop:disable Style/Next
-          locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
+          locations[:methods].sort do |a, b|
+            a[2] == b[2] ? a[0] <=> b[0] : a[2] <=> b[2]
+          end.each_with_index do |method, index|
             m, path, line = method
             mark = locations[:methods].size - 1 == index ? "└" : "├"
             result << "#{indent}|     #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:,

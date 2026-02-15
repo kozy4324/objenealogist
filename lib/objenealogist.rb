@@ -11,11 +11,15 @@ class Objenealogist
     def initialize(target_class_names)
       @target_class_names = target_class_names.map(&:to_s).map(&:to_sym)
       @found = []
+      @stack = []
     end
 
     def visit_class_node(node)
-      @found << [node.name, node.location] if @target_class_names.include?(node.name)
+      @stack << node.name
+      name = @stack.join("::").to_sym
+      @found << [name, node.location] if @target_class_names.include?(name)
       super
+      @stack.pop
     end
 
     alias visit_module_node visit_class_node
@@ -64,8 +68,8 @@ class Objenealogist
         source = File.open(path).read
         visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
-        visitor.found.each do |name, class_def_location|
-          (location_map[name] ||= []) << "#{path}:#{class_def_location.start_line}"
+        visitor.found.each do |name, def_location|
+          (location_map[name] ||= []) << "#{path}:#{def_location.start_line}"
         end
       end
       location_map
@@ -99,12 +103,14 @@ class C1
   def c1 = :c1
 end
 
-class C2 < C1
-  include M4
-  def c2 = :c2
+module NS
+  class C2 < C1
+    include M4
+    def c2 = :c2
+  end
 end
 
-class MyClass < C2
+class MyClass < NS::C2
   include M1
   include M2
   def c = :c

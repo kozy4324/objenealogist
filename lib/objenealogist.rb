@@ -68,7 +68,11 @@ class Objenealogist
 
     def format_locations(locations)
       if locations.is_a?(String)
-        " (location: #{locations})"
+        if locations != ":0"
+          " (location: #{locations})"
+        else
+          ""
+        end
       elsif locations && locations[:locations]&.any?
         " (location: #{locations[:locations].map { |path, loc| "#{path}:#{loc.start_line}" }.join(", ")})"
       else
@@ -97,13 +101,17 @@ class Objenealogist
           (location_map[name] ||= { locations: [], methods: [] })[:locations] << [path, def_location]
         end
       end
-      source_locations.each do |m, path, line|
+      source_locations.uniq(&:join).each do |m, path, line|
         locations = location_map.values.find do |location|
           location[:locations].any? do |_path, loc|
             path == _path && loc.start_line <= line && line <= loc.end_line
           end
         end
-        locations[:methods] << [m, path, line] if locations
+        if locations
+          locations[:methods] << [m, path, line]
+        else
+          location_map[clazz.to_s.to_sym]&.[](:methods)&.<< [m, nil, 0]
+        end
       end
       # {M1:
       #   {locations: [["objenealogist.rb", (122,0)-(124,3)]],

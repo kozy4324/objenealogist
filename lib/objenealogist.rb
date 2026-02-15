@@ -40,9 +40,9 @@ class Objenealogist
         locations[:methods].sort { |a, b| a[2] <=> b[2] }.each_with_index do |method, index|
           m, path, line = method
           mark = locations[:methods].size - 1 == index ? "└" : "├"
-          result << "#{indent}|   #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:)}"
+          result << "#{indent}│   #{mark} #{m}#{format_locations("#{path}:#{line}", show_locations:)}"
         end
-        result << "#{indent}|"
+        result << "#{indent}│"
       end
 
       (clazz.included_modules - (clazz.superclass&.included_modules || [])).each do |mod|

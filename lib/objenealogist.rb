@@ -98,7 +98,7 @@ class Objenealogist
         visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
         visitor.found.each do |name, def_location|
-          (location_map[name] ||= { locations: [], methods: [] })[:locations] << [path, def_location]
+          (location_map[name] ||= { name: name, locations: [], methods: [] })[:locations] << [path, def_location]
         end
       end
       source_locations.uniq(&:join).each do |m, path, line|
@@ -114,7 +114,8 @@ class Objenealogist
         end
       end
       # {M1:
-      #   {locations: [["objenealogist.rb", (122,0)-(124,3)]],
+      #   {name: :M1,
+      #    locations: [["objenealogist.rb", (122,0)-(124,3)]],
       #    methods: [[:m1, "objenealogist.rb", 123]]}}
       location_map
     end

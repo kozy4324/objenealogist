@@ -4,7 +4,8 @@ require "prism"
 
 require_relative "objenealogist/version"
 
-class Objenealogist
+class Objenealogist # rubocop:disable Style/Documentation
+  # `class` and `module` node visitor
   class ClassVisitor < Prism::Visitor
     attr_reader :found
 
@@ -12,6 +13,7 @@ class Objenealogist
       @target_class_names = target_class_names.map(&:to_s).map(&:to_sym)
       @found = []
       @stack = []
+      super()
     end
 
     def visit_class_node(node)
@@ -31,7 +33,7 @@ class Objenealogist
       process_one(clazz, show_methods:, show_locations:).join("\n")
     end
 
-    def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "", show_methods: true,
+    def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "", show_methods: true, # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity,Metrics/ParameterLists
                     show_locations: true)
       locations = location_map[clazz.to_s.to_sym]
 
@@ -72,17 +74,17 @@ class Objenealogist
         locations = location_map[clazz.superclass.to_s.to_sym]
         result << "#{indent}└── C #{clazz.superclass}#{format_locations(locations, show_locations:,
                                                                                    target: clazz.superclass.to_s)}"
-        if clazz.superclass != ::BasicObject
-          process_one(clazz.superclass, result, location_map, "    #{indent}", show_methods:, show_locations:)
-        else
+        if clazz.superclass == ::BasicObject
           result
+        else
+          process_one(clazz.superclass, result, location_map, "    #{indent}", show_methods:, show_locations:)
         end
       else
         result
       end
     end
 
-    def format_locations(locations, show_locations: true, target: "")
+    def format_locations(locations, show_locations: true, target: "") # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
       return "" unless show_locations
       return "" if show_locations.is_a?(Regexp) && show_locations !~ target
 
@@ -99,21 +101,20 @@ class Objenealogist
       end
     end
 
-    def create_location_map(clazz)
+    def create_location_map(clazz) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
       instance = clazz.allocate
       methods = clazz.methods + instance.methods
-      source_locations = methods.map do |m|
-        if clazz.respond_to?(m) && clazz.method(m).source_location
-          [m] + clazz.method(m).source_location
-        elsif instance.respond_to?(m) && instance.method(m).source_location
-          [m] + instance.method(m).source_location
-        end
-      end.compact
       location_map = {}
-      source_locations.uniq { |_, path,| path }.each do |method, path, line|
+      methods.map do |m|
+        if clazz.respond_to?(m) && clazz.method(m).source_location
+          clazz.method(m).source_location[0]
+        elsif instance.respond_to?(m) && instance.method(m).source_location
+          instance.method(m).source_location[0]
+        end
+      end.compact.uniq.each do |path| # rubocop:disable Style/MultilineBlockChain
         next unless File.exist?(path)
 
-        source = File.open(path).read
+        source = File.read(path)
         visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
         visitor.found.each do |name, def_location|
@@ -126,44 +127,4 @@ class Objenealogist
       location_map
     end
   end
-end
-
-module M1
-  def m1 = :m1
-end
-
-module M2
-  def m2 = :m2
-end
-
-module M3
-  def m3 = :m3
-end
-
-module M4
-  include M3
-  def m4 = :m4
-end
-
-module M5
-  def m5 = :m5
-end
-
-class C1
-  include M5
-  def c1 = :c1
-end
-
-module NS
-  class C2 < C1
-    include M4
-    def c2 = :c2
-  end
-end
-
-class MyClass < NS::C2
-  include M1
-  include M2
-  def c = :c
-  def self.singleton_c = :singleton_c
 end

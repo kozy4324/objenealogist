@@ -15,7 +15,7 @@ gem install objenealogist
 ```ruby
 require 'objenealogist'
 
-puts Objenealogist.to_tree(MyClass)
+puts MyClass.to_tree
 ```
 
 ### Options
@@ -25,8 +25,8 @@ puts Objenealogist.to_tree(MyClass)
 
 ### Example
 
-```
-Objenealogist.to_tree(MyClass, show_locations: false)
+```ruby
+MyClass.to_tree(show_locations: false)
 ```
 
 ```
@@ -58,6 +58,12 @@ C MyClass
         └── C Object
             ├── M Kernel
             └── C BasicObject
+```
+
+### Output to file
+
+```ruby
+MyClass.to_tree >> "out.txt"
 ```
 
 ## License

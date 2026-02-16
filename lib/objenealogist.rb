@@ -28,9 +28,9 @@ class Objenealogist # rubocop:disable Style/Documentation
   end
 
   class << self
-    def to_tree(clazz, show_methods: true, show_locations: true)
+    def to_tree(clazz = self, show_methods: true, show_locations: true)
       # ruby -r./lib/objenealogist -r./test/my_class -e "puts Objenealogist.to_tree(MyClass)"
-      process_one(clazz, show_methods:, show_locations:).join("\n")
+      Objenealogist::String.new(process_one(clazz, show_methods:, show_locations:).join("\n"))
     end
 
     def process_one(clazz, result = [], location_map = create_location_map(clazz), indent = "", show_methods: true, # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity,Metrics/ParameterLists
@@ -88,7 +88,7 @@ class Objenealogist # rubocop:disable Style/Documentation
       return "" unless show_locations
       return "" if show_locations.is_a?(Regexp) && show_locations !~ target
 
-      if locations.is_a?(String)
+      if locations.is_a?(::String)
         if locations != ":" && show_locations
           " (location: #{locations})"
         else
@@ -124,5 +124,19 @@ class Objenealogist # rubocop:disable Style/Documentation
       # {M1: [["objenealogist.rb", (122,0)-(124,3)]]}
       location_map
     end
+  end
+
+  class String < ::String # rubocop:disable Style/Documentation
+    def >>(other)
+      raise "A file already exists!" if File.exist?(other)
+
+      File.write(other, to_s)
+    end
+  end
+end
+
+class Class # rubocop:disable Style/Documentation
+  def to_tree(show_methods: true, show_locations: true)
+    Objenealogist.to_tree(self, show_methods:, show_locations:)
   end
 end

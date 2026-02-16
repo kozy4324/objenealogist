@@ -29,7 +29,7 @@ class Objenealogist # rubocop:disable Style/Documentation
 
   class << self
     def to_tree(clazz, show_methods: true, show_locations: true)
-      # ruby -r./lib/objenealogist -e 'puts Objenealogist.to_tree(Objenealogist)'
+      # ruby -r./lib/objenealogist -r./test/my_class -e "puts Objenealogist.to_tree(MyClass)"
       process_one(clazz, show_methods:, show_locations:).join("\n")
     end
 
@@ -94,8 +94,8 @@ class Objenealogist # rubocop:disable Style/Documentation
         else
           ""
         end
-      elsif locations && locations[:locations]&.any? && show_locations
-        " (location: #{locations[:locations].map { |path, loc| "#{path}:#{loc.start_line}" }.join(", ")})"
+      elsif locations&.any? && show_locations
+        " (location: #{locations.map { |path, loc| "#{path}:#{loc.start_line}" }.join(", ")})"
       else
         ""
       end
@@ -118,12 +118,10 @@ class Objenealogist # rubocop:disable Style/Documentation
         visitor = ClassVisitor.new(clazz.ancestors)
         Prism.parse(source).value.accept(visitor)
         visitor.found.each do |name, def_location|
-          (location_map[name] ||= { name: name, locations: [], methods: [] })[:locations] << [path, def_location]
+          (location_map[name] ||= []) << [path, def_location]
         end
       end
-      # {M1:
-      #   {name: :M1,
-      #    locations: [["objenealogist.rb", (122,0)-(124,3)]]}
+      # {M1: [["objenealogist.rb", (122,0)-(124,3)]]}
       location_map
     end
   end

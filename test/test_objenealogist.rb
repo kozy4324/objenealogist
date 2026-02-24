@@ -171,4 +171,11 @@ class TestFormatLocations < Minitest::Test
 
     assert_equal "", result
   end
+
+  def test_to_tree_from_class
+    expected = Objenealogist.to_tree(MyClass)
+    result = MyClass.to_tree
+
+    assert_equal expected, result
+  end
 end

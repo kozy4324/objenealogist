@@ -140,3 +140,9 @@ class Class # rubocop:disable Style/Documentation
     Objenealogist.to_tree(self, show_methods:, show_locations:)
   end
 end
+
+class Object # rubocop:disable Style/Documentation
+  def to_tree(show_methods: true, show_locations: true)
+    Objenealogist.to_tree(self, show_methods:, show_locations:)
+  end
+end

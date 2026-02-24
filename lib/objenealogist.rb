@@ -29,7 +29,7 @@ class Objenealogist # rubocop:disable Style/Documentation
 
   class << self
     def to_tree(clazz = self, show_methods: true, show_locations: true)
-      # ruby -r./lib/objenealogist -r./test/my_class -e "puts Objenealogist.to_tree(MyClass)"
+      clazz = clazz.class if !clazz.respond_to?(:allocate) && clazz.respond_to?(:class)
       Objenealogist::String.new(process_one(clazz, show_methods:, show_locations:).join("\n"))
     end
 

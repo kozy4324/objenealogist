@@ -12,6 +12,6 @@ gem "minitest"
 
 gem "rubocop", "~> 1.21"
 
-gem "rubocop-minitest", "~> 0.38.2"
+gem "rubocop-minitest"
 
 gem "rubocop-rake", "~> 0.7.1"

@@ -8,6 +8,9 @@ Style/StringLiterals:
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 
+Style/OneClassPerFile:
+  Enabled: false
+
 plugins:
   - rubocop-minitest
   - rubocop-rake
